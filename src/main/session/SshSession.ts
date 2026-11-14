@@ -1,7 +1,20 @@
 import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { Client, ClientChannel, ConnectConfig } from 'ssh2';
 import { SshProfile } from '../../shared/types';
 import { TerminalSessionBackend } from './LocalPtySession';
+
+function resolveUserPath(inputPath: string): string {
+  const trimmed = inputPath.trim();
+  if (trimmed === '~') {
+    return os.homedir();
+  }
+  if (trimmed.startsWith('~/') || trimmed.startsWith('~\\')) {
+    return path.join(os.homedir(), trimmed.slice(2));
+  }
+  return trimmed;
+}
 
 export interface SshSessionOptions {
   profile: SshProfile;
@@ -37,7 +50,8 @@ export class SshSession implements TerminalSessionBackend {
       connectConfig.password = profile.password ?? '';
     } else if (profile.authType === 'privateKey' && profile.privateKeyPath) {
       try {
-        connectConfig.privateKey = fs.readFileSync(profile.privateKeyPath);
+        const keyPath = resolveUserPath(profile.privateKeyPath);
+        connectConfig.privateKey = fs.readFileSync(keyPath);
         if (profile.passphrase) {
           connectConfig.passphrase = profile.passphrase;
         }
@@ -47,7 +61,10 @@ export class SshSession implements TerminalSessionBackend {
         return;
       }
     } else if (profile.authType === 'agent') {
-      connectConfig.agent = process.env.SSH_AUTH_SOCK;
+      connectConfig.agent =
+        process.platform === 'win32'
+          ? process.env.SSH_AUTH_SOCK || '\\\\.\\pipe\\openssh-ssh-agent'
+          : process.env.SSH_AUTH_SOCK;
     }
 
     this.client.on('ready', () => {

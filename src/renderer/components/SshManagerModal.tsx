@@ -67,7 +67,7 @@ export const SshManagerModal: React.FC<SshManagerModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop">
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

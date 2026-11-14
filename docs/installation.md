@@ -1,10 +1,13 @@
 # Installation Guide
 
-## Prerequisites (Ubuntu)
+NovaTerm is cross-platform and supports both **Ubuntu / Linux** and **Windows 10/11**.
+
+## Prerequisites
 
 - **Node.js**: v20+ (tested on Node.js v24.22.3)
 - **npm**: v10+
-- **Desktop Environment**: X11 (`DISPLAY=:0`) or Wayland (`WAYLAND_DISPLAY=wayland-0`)
+- **Linux**: X11 (`DISPLAY=:0`) or Wayland (`WAYLAND_DISPLAY=wayland-0`)
+- **Windows**: Windows 10/11 (`powershell.exe` / ConPTY)
 
 ## Install Dependencies
 
@@ -13,7 +16,7 @@ npm install
 ```
 
 > **Note on PTY Native Module (`@lydell/node-pty`)**:
-> NovaTerm uses `@lydell/node-pty` which ships prebuilt N-API binaries for Linux x64, so no `gcc`/`g++`/`make` toolchain is required. If you switch to upstream `node-pty` and need to recompile against Electron's ABI, install `build-essential` and run:
+> NovaTerm uses `@lydell/node-pty`, which ships prebuilt N-API binaries for Linux x64 and Windows x64, so no `gcc`/`g++`/`make` or Visual Studio Build Tools toolchain is required. If you switch to upstream `node-pty` and need to recompile against Electron's ABI, run:
 > ```bash
 > npm run rebuild
 > ```
@@ -48,9 +51,9 @@ npm run typecheck
 npm test
 ```
 
-## Packaging & Installing as a Linux Binary
+## Packaging for Linux
 
-NovaTerm uses `electron-builder` with a custom `scripts/afterPack.js` hook that wraps the Linux executable (`novaterm` -> `novaterm.bin` + `--no-sandbox` launcher) and unpacks `@lydell/node-pty*` from `app.asar`. This ensures the packaged binary runs directly on Ubuntu 24.04+ without `chrome-sandbox` SUID errors.
+NovaTerm uses `electron-builder` with a custom `scripts/afterPack.js` hook that wraps the Linux executable (`novaterm` -> `novaterm.bin` + `--no-sandbox` launcher) and unpacks `@lydell/node-pty*` from `app.asar`. On first launch, NovaTerm also ensures `~/.local/share/applications/novaterm.desktop` and `~/.local/share/icons/novaterm.png` exist so the app icon appears properly in the Ubuntu dock/launcher even when run from `linux-unpacked`.
 
 ### 1. Build Unpacked Executable (`release/linux-unpacked/novaterm`)
 
@@ -102,3 +105,17 @@ sudo apt remove nova-term
 chmod +x release/NovaTerm-1.0.0.AppImage
 ./release/NovaTerm-1.0.0.AppImage
 ```
+
+## Packaging for Windows
+
+Run on a Windows machine (so `npm install` downloads `@lydell/node-pty-win32-x64`):
+
+```powershell
+npm install
+npm run pack:win
+```
+
+This builds both Main & Renderer processes and generates Windows artifacts under `release/`:
+
+- **NSIS Installer** (`.exe`)
+- **Portable Executable** (`.exe`)

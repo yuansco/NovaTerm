@@ -1,6 +1,40 @@
 import fs from 'fs';
 import os from 'os';
+import path from 'path';
 import * as pty from '@lydell/node-pty';
+
+const OSC7_REGEX = /\x1b\]7;file:\/\/[^/\x07\x1b]*([^\x07\x1b]+)(?:\x07|\x1b\\)/g;
+
+function resolveDefaultShell(explicitShell?: string): string {
+  if (explicitShell) {
+    return explicitShell;
+  }
+  if (process.platform === 'win32') {
+    return 'powershell.exe';
+  }
+  return process.env.SHELL || '/bin/bash';
+}
+
+function parseOsc7Cwd(data: string): string | undefined {
+  let latest: string | undefined;
+  OSC7_REGEX.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = OSC7_REGEX.exec(data)) !== null) {
+    try {
+      let decoded = decodeURIComponent(match[1]);
+      if (process.platform === 'win32') {
+        decoded = decoded.replace(/^\/([A-Za-z]:)/, '$1');
+      }
+      const normalized = path.normalize(decoded);
+      if (fs.existsSync(normalized)) {
+        latest = normalized;
+      }
+    } catch {
+      // Ignore malformed OSC 7 URI
+    }
+  }
+  return latest;
+}
 
 export interface TerminalSessionBackend {
   write(data: string): void;
@@ -24,7 +58,7 @@ export class LocalPtySession implements TerminalSessionBackend {
   private closed = false;
 
   constructor(options: LocalPtyOptions) {
-    const shell = options.shell || process.env.SHELL || '/bin/bash';
+    const shell = resolveDefaultShell(options.shell);
     const cwd =
       options.cwd && fs.existsSync(options.cwd) ? options.cwd : os.homedir();
     this.initialCwd = cwd;
@@ -48,6 +82,10 @@ export class LocalPtySession implements TerminalSessionBackend {
 
     this.ptyProcess.onData((data) => {
       if (!this.closed) {
+        const oscCwd = parseOsc7Cwd(data);
+        if (oscCwd) {
+          this.initialCwd = oscCwd;
+        }
         options.onData(data);
       }
     });

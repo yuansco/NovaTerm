@@ -2,20 +2,27 @@
 
 ## Data Storage Locations
 
-On Ubuntu, Electron stores NovaTerm's persistent files under `~/.config/nova-term/`:
+NovaTerm stores its persistent configuration and workspace state inside Electron's `userData` directory (`nova-term`):
 
-- `config.json`: Themes, font settings, key macros, auto-run commands, log quotas, and SSH profiles (with encrypted credentials).
+- **Linux (Ubuntu)**: `~/.config/nova-term/`
+- **Windows**: `%APPDATA%\nova-term\` (typically `C:\Users\<username>\AppData\Roaming\nova-term\`)
+
+Files stored in this directory:
+
+- `config.json`: Language (`zh-TW` / `en`), themes, font settings, key macros, floating quick commands, auto-run commands, log quotas, and SSH profiles (with encrypted credentials).
 - `workspace-state.json`: Saved tabs, binary split-pane tree layout & ratios, active pane IDs, and local working directories (`CWD`).
-- `logs/`: Default directory for continuous session logs and rotated archives (`session.log`, `session.log.1`, ...).
+
+Continuous session logs (`session-<id>.log`, `session-<id>.log.1`, ...) are written to `logQuota.logDirectory` (defaults to `os.homedir()`).
 
 ## Exporting & Restoring Backup JSON
 
 1. Open **Settings** -> **JSON Export / Import**.
-2. Click **Export JSON Config** to save a single `.json` backup file containing:
-   - `themeId`, `customThemes`, `fontFamily`, `fontSize`, `lineHeight`, `useWebGL`
+2. Click **Export JSON Config** to save a single `.json` backup file (default filename: `novaterm-config.json` in your Documents folder) containing:
+   - `language`, `themeId`, `customThemes`, `fontFamily`, `fontSize`, `lineHeight`, `useWebGL`, `scrollback`
    - `macros` (custom shortcut commands)
+   - `quickCommands` & `showQuickCommandBar` (floating quick command panel items & visibility)
    - `autoCommands` (local & SSH startup commands)
-   - `logQuota` (max MB, max lines, max rotated files, ANSI stripping)
+   - `logQuota` (max MB, max lines, max rotated files, ANSI stripping, log directory)
    - `sshProfiles`
    - `workspaceSnapshot` (all tabs, split pane trees, ratios, and CWDs)
 3. To restore on another machine or after a reset, click **Import JSON Config** and select your `.json` backup file. NovaTerm immediately applies the settings and restores the workspace layout.
@@ -25,8 +32,10 @@ On Ubuntu, Electron stores NovaTerm's persistent files under `~/.config/nova-ter
 ```json
 {
   "version": 1,
-  "themeId": "dracula",
-  "fontFamily": "\"JetBrains Mono\", \"Ubuntu Mono\", monospace",
+  "language": "zh-TW",
+  "themeId": "one-dark",
+  "customThemes": [],
+  "fontFamily": "\"JetBrains Mono\", \"Fira Code\", \"Ubuntu Mono\", monospace",
   "fontSize": 14,
   "lineHeight": 1.25,
   "useWebGL": true,
@@ -37,7 +46,7 @@ On Ubuntu, Electron stores NovaTerm's persistent files under `~/.config/nova-ter
     "maxLines": 100000,
     "maxRotatedFiles": 5,
     "stripAnsi": true,
-    "logDirectory": "/home/user/.config/nova-term/logs"
+    "logDirectory": "/home/user"
   },
   "macros": [
     {
@@ -48,6 +57,15 @@ On Ubuntu, Electron stores NovaTerm's persistent files under `~/.config/nova-ter
       "appendNewline": true
     }
   ],
+  "quickCommands": [
+    {
+      "id": "qc-uname",
+      "label": "uname -a",
+      "command": "uname -a",
+      "appendNewline": true
+    }
+  ],
+  "showQuickCommandBar": true,
   "autoCommands": {
     "onNewLocalTab": "",
     "onNewSshTab": "",

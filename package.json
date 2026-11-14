@@ -14,6 +14,7 @@
     "start": "npm run build && electron . --no-sandbox",
     "pack:dir": "npm run build && electron-builder --linux dir",
     "pack:linux": "npm run build && electron-builder --linux AppImage deb",
+    "pack:win": "npm run build && electron-builder --win",
     "rebuild": "electron-rebuild -f -w node-pty",
     "test": "npm run build:main && node --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.main.json"
@@ -70,6 +71,13 @@
       "target": [
         "AppImage",
         "deb"
+      ]
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        "nsis",
+        "portable"
       ]
     }
   }
