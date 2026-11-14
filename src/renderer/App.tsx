@@ -65,10 +65,11 @@ export const App: React.FC = () => {
   const handleExecuteQuickCommand = (item: QuickCommandItem) => {
     const activeTab = tabs.find((tab) => tab.id === activeTabId);
     if (!activeTab) return;
+    const normalized = item.command.replace(/\r\n/g, '\r').replace(/\n/g, '\r');
     const suffix = item.appendNewline ? '\r' : '';
     window.novaTerm.session.write(
       activeTab.activePaneId,
-      `${item.command}${suffix}`,
+      `${normalized}${suffix}`,
     );
   };
 

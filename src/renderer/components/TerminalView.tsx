@@ -200,8 +200,9 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       );
       if (matchedMacro) {
         e.preventDefault();
+        const normalized = matchedMacro.command.replace(/\r\n/g, '\r').replace(/\n/g, '\r');
         const suffix = matchedMacro.appendNewline ? '\r' : '';
-        window.novaTerm.session.write(pane.id, `${matchedMacro.command}${suffix}`);
+        window.novaTerm.session.write(pane.id, `${normalized}${suffix}`);
         return false;
       }
 

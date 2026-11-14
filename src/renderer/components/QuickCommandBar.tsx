@@ -13,6 +13,24 @@ interface QuickCommandBarProps {
   onClose: () => void;
 }
 
+function computeIdealSize(commands: QuickCommandItem[], fontSize: number): {
+  width: number;
+  height: number;
+} {
+  const maxLabelLen = commands.reduce(
+    (max, item) => Math.max(max, (item.label || item.command).length),
+    10,
+  );
+  const width = Math.min(380, Math.max(230, maxLabelLen * (fontSize * 0.65) + 64));
+  const rowHeight = Math.max(30, fontSize + 20);
+  const idealHeight = 46 + commands.length * rowHeight + Math.max(0, commands.length - 1) * 6 + 14;
+  const maxAllowedHeight = typeof window !== 'undefined' ? window.innerHeight * 0.65 : 500;
+  return {
+    width: Math.round(width),
+    height: Math.round(Math.min(maxAllowedHeight, Math.max(88, idealHeight))),
+  };
+}
+
 export const QuickCommandBar: React.FC<QuickCommandBarProps> = ({
   t,
   commands,
@@ -23,16 +41,25 @@ export const QuickCommandBar: React.FC<QuickCommandBarProps> = ({
   onClose,
 }) => {
   const barRef = useRef<HTMLDivElement | null>(null);
-  const [pos, setPos] = useState<{ top: number; left: number }>(() => ({
-    top: 46,
-    left: Math.max(16, window.innerWidth - 260),
-  }));
-  const [size, setSize] = useState<{ width: number; height: number }>({
-    width: 240,
-    height: 120,
+  const [size, setSize] = useState<{ width: number; height: number }>(() =>
+    computeIdealSize(commands, fontSize),
+  );
+  const [pos, setPos] = useState<{ top: number; left: number }>(() => {
+    const initial = computeIdealSize(commands, fontSize);
+    return {
+      top: 46,
+      left: Math.max(16, window.innerWidth - initial.width - 18),
+    };
   });
+  const [hasManualResize, setHasManualResize] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<QuickCommandItem[]>([]);
+
+  React.useEffect(() => {
+    if (!hasManualResize) {
+      setSize(computeIdealSize(commands, fontSize));
+    }
+  }, [commands, fontSize, hasManualResize]);
 
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -62,6 +89,7 @@ export const QuickCommandBar: React.FC<QuickCommandBarProps> = ({
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setHasManualResize(true);
     const startX = e.clientX;
     const startY = e.clientY;
     const initialW = size.width;
@@ -173,7 +201,7 @@ export const QuickCommandBar: React.FC<QuickCommandBarProps> = ({
       </div>
 
       {isEditing && (
-        <div className="modal-backdrop" onClick={() => setIsEditing(false)}>
+        <div className="modal-backdrop">
           <div
             className="modal-card"
             style={{ width: 640 }}
@@ -181,9 +209,6 @@ export const QuickCommandBar: React.FC<QuickCommandBarProps> = ({
           >
             <div className="modal-header">
               <h2>{t.quickBar.editorTitle}</h2>
-              <button className="icon-btn" onClick={() => setIsEditing(false)}>
-                <X size={16} />
-              </button>
             </div>
 
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -214,12 +239,23 @@ export const QuickCommandBar: React.FC<QuickCommandBarProps> = ({
                     }
                     placeholder={t.quickBar.labelPlaceholder}
                   />
-                  <input
+                  <textarea
+                    rows={3}
                     value={item.command}
                     onChange={(e) =>
                       updateDraftItem(item.id, { command: e.target.value })
                     }
                     placeholder={t.quickBar.commandPlaceholder}
+                    style={{
+                      resize: 'vertical',
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      padding: '6px 8px',
+                      background: 'var(--nt-surface-bg)',
+                      color: 'var(--nt-text-primary)',
+                      border: '1px solid var(--nt-border-color)',
+                      borderRadius: 5,
+                    }}
                   />
                   <label
                     style={{
