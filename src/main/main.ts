@@ -82,6 +82,7 @@ function createWindow(): void {
     y: bounds?.y,
     minWidth: 720,
     minHeight: 480,
+    icon: path.join(__dirname, '../../assets/icon.png'),
     frame: false,
     backgroundColor: '#1e2127',
     webPreferences: {
@@ -306,7 +307,50 @@ function registerIpcHandlers(): void {
   });
 }
 
+function ensureLinuxDesktopEntry(): void {
+  if (process.platform !== 'linux') return;
+    const iconSrc = path.join(__dirname, '../../assets/icon.png');
+    const appsDir = path.join(os.homedir(), '.local/share/applications');
+    const iconsDir = path.join(os.homedir(), '.local/share/icons');
+    const systemDesktop = '/usr/share/applications/novaterm.desktop';
+
+    if (!fs.existsSync(systemDesktop) && fs.existsSync(iconSrc)) {
+      try {
+        fs.mkdirSync(appsDir, { recursive: true });
+        fs.mkdirSync(iconsDir, { recursive: true });
+        const userIconPath = path.join(iconsDir, 'novaterm.png');
+        fs.writeFileSync(userIconPath, fs.readFileSync(iconSrc));
+
+        const execPath = process.execPath.endsWith('.bin')
+          ? process.execPath.slice(0, -4)
+          : process.execPath;
+        const desktopEntry = [
+          '[Desktop Entry]',
+          'Name=NovaTerm',
+          'Comment=Modern Ubuntu Desktop Terminal Emulator',
+          `Exec="${execPath}" %U`,
+          `Icon=${userIconPath}`,
+          'Terminal=false',
+          'Type=Application',
+          'Categories=System;TerminalEmulator;',
+          'StartupWMClass=novaterm',
+          '',
+        ].join('\n');
+        fs.writeFileSync(path.join(appsDir, 'novaterm.desktop'), desktopEntry, 'utf8');
+      } catch {
+        // Ignore desktop entry registration errors
+      }
+    }
+}
+
+if (process.platform === 'linux') {
+  app.setName('novaterm');
+  const appWithDesktopName = app as unknown as { setDesktopName?: (name: string) => void };
+  appWithDesktopName.setDesktopName?.('novaterm.desktop');
+}
+
 void app.whenReady().then(() => {
+  ensureLinuxDesktopEntry();
   const userDataDir = app.getPath('userData');
   configStore = new ConfigStore(userDataDir, createElectronSecretCipher(safeStorage));
 

@@ -4,6 +4,7 @@
   "description": "Modern Ubuntu desktop terminal emulator with smart tabs, infinite split panes, built-in SSH, session persistence, and log streaming",
   "author": "yuansco <yuansco@users.noreply.github.com>",
   "homepage": "https://github.com/yuansco/NovaTerm",
+  "desktopName": "novaterm.desktop",
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"tsc -p tsconfig.main.json --watch\" \"wait-on http://localhost:5173 dist/main/main.js && electron . --no-sandbox\"",
@@ -54,14 +55,17 @@
     "afterPack": "scripts/afterPack.js",
     "files": [
       "dist/**/*",
+      "assets/**/*",
       "package.json"
     ],
     "asarUnpack": [
       "node_modules/@lydell/node-pty*/**"
     ],
     "linux": {
+      "icon": "assets/icon.png",
       "category": "System;TerminalEmulator",
       "executableName": "novaterm",
+      "syncDesktopName": true,
       "maintainer": "NovaTerm <novaterm@example.com>",
       "target": [
         "AppImage",
