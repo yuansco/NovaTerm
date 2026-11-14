@@ -59,6 +59,24 @@ function formatKeyCombo(e: KeyboardEvent): string {
   return parts.join('+');
 }
 
+interface CachedTerminal {
+  term: Terminal;
+  fitAddon: FitAddon;
+  wrapperEl: HTMLDivElement;
+  sessionState: 'idle' | 'connected' | 'disconnected' | 'error';
+  onStatusChange?: (state: 'idle' | 'connected' | 'disconnected' | 'error') => void;
+  dispose: () => void;
+}
+
+const terminalCache = new Map<string, CachedTerminal>();
+
+export function disposeTerminalInstance(paneId: string): void {
+  const cached = terminalCache.get(paneId);
+  if (!cached) return;
+  terminalCache.delete(paneId);
+  cached.dispose();
+}
+
 export const TerminalView: React.FC<TerminalViewProps> = ({
   t,
   pane,
@@ -79,7 +97,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     null,
   );
   const [sessionState, setSessionState] = useState<'idle' | 'connected' | 'disconnected' | 'error'>(
-    'idle',
+    () => terminalCache.get(pane.id)?.sessionState ?? 'idle',
   );
 
   const statusLabel =
@@ -138,114 +156,149 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     }
   }, [pane.id, pane.isLogging, onLoggingChange]);
 
-  // Mount xterm.js and bind IPC session
+  // Mount xterm.js (or re-attach cached instance on split-pane tree restructure)
   useEffect(() => {
     const container = hostRef.current;
     if (!container) return;
 
-    const term = new Terminal({
-      allowProposedApi: true,
-      cursorBlink: true,
-      fontFamily: config.fontFamily,
-      fontSize: config.fontSize,
-      lineHeight: config.lineHeight,
-      scrollback: config.scrollback,
-      theme: theme.terminal,
-    });
+    let cached = terminalCache.get(pane.id);
 
-    const fitAddon = new FitAddon();
-    const searchAddon = new SearchAddon();
-    const webLinksAddon = new WebLinksAddon();
+    if (!cached) {
+      const wrapperEl = document.createElement('div');
+      wrapperEl.style.width = '100%';
+      wrapperEl.style.height = '100%';
 
-    term.loadAddon(fitAddon);
-    term.loadAddon(searchAddon);
-    term.loadAddon(webLinksAddon);
-    term.open(container);
+      const term = new Terminal({
+        allowProposedApi: true,
+        cursorBlink: true,
+        fontFamily: config.fontFamily,
+        fontSize: config.fontSize,
+        lineHeight: config.lineHeight,
+        scrollback: config.scrollback,
+        theme: theme.terminal,
+      });
 
-    if (config.useWebGL) {
-      try {
-        const webglAddon = new WebglAddon();
-        webglAddon.onContextLoss(() => {
-          webglAddon.dispose();
-        });
-        term.loadAddon(webglAddon);
-      } catch {
-        // Fallback to standard canvas/DOM renderer
-      }
-    }
+      const fitAddon = new FitAddon();
+      const searchAddon = new SearchAddon();
+      const webLinksAddon = new WebLinksAddon();
 
-    fitAddon.fit();
-    termRef.current = term;
-    fitAddonRef.current = fitAddon;
+      term.loadAddon(fitAddon);
+      term.loadAddon(searchAddon);
+      term.loadAddon(webLinksAddon);
 
-    term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-      if (e.type !== 'keydown') return true;
+      container.appendChild(wrapperEl);
+      term.open(wrapperEl);
 
-      // Built-in Copy / Paste shortcuts
-      if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === 'C') {
-        e.preventDefault();
-        handleCopy();
-        return false;
-      }
-      if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === 'V') {
-        e.preventDefault();
-        void handlePaste();
-        return false;
-      }
-
-      // Custom quick command macros (e.g. F1 -> 'cd ~/project;python -m venv venv')
-      const combo = formatKeyCombo(e);
-      const matchedMacro = macrosRef.current.find(
-        (m) => m.shortcut.toLowerCase() === combo.toLowerCase(),
-      );
-      if (matchedMacro) {
-        e.preventDefault();
-        const normalized = matchedMacro.command.replace(/\r\n/g, '\r').replace(/\n/g, '\r');
-        const suffix = matchedMacro.appendNewline ? '\r' : '';
-        window.novaTerm.session.write(pane.id, `${normalized}${suffix}`);
-        return false;
-      }
-
-      return true;
-    });
-
-    const unsubscribeData = window.novaTerm.session.onData((event) => {
-      if (event.paneId === pane.id) {
-        term.write(event.data);
-      }
-    });
-
-    const unsubscribeStatus = window.novaTerm.session.onStatus((event) => {
-      if (event.paneId === pane.id) {
-        if (event.status === 'connected') {
-          setSessionState('connected');
-        } else if (event.status === 'disconnected') {
-          setSessionState('disconnected');
-        } else if (event.status === 'error') {
-          setSessionState('error');
+      if (config.useWebGL) {
+        try {
+          const webglAddon = new WebglAddon();
+          webglAddon.onContextLoss(() => {
+            webglAddon.dispose();
+          });
+          term.loadAddon(webglAddon);
+        } catch {
+          // Fallback to standard canvas/DOM renderer
         }
       }
-    });
 
-    const disposeInput = term.onData((data) => {
-      window.novaTerm.session.write(pane.id, data);
-    });
+      fitAddon.fit();
 
-    void window.novaTerm.session.create({
-      paneId: pane.id,
-      cols: term.cols,
-      rows: term.rows,
-      config: pane.sessionConfig,
-    });
+      term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+        if (e.type !== 'keydown') return true;
 
-    void window.novaTerm.log.getStatus(pane.id).then((active) => {
-      onLoggingChange(active);
-    });
+        if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === 'C') {
+          e.preventDefault();
+          handleCopy();
+          return false;
+        }
+        if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === 'V') {
+          e.preventDefault();
+          void handlePaste();
+          return false;
+        }
+
+        const combo = formatKeyCombo(e);
+        const matchedMacro = macrosRef.current.find(
+          (m) => m.shortcut.toLowerCase() === combo.toLowerCase(),
+        );
+        if (matchedMacro) {
+          e.preventDefault();
+          const normalized = matchedMacro.command.replace(/\r\n/g, '\r').replace(/\n/g, '\r');
+          const suffix = matchedMacro.appendNewline ? '\r' : '';
+          window.novaTerm.session.write(pane.id, `${normalized}${suffix}`);
+          return false;
+        }
+
+        return true;
+      });
+
+      const newCached: CachedTerminal = {
+        term,
+        fitAddon,
+        wrapperEl,
+        sessionState: 'idle',
+        dispose: () => {},
+      };
+
+      const unsubscribeData = window.novaTerm.session.onData((event) => {
+        if (event.paneId === pane.id) {
+          term.write(event.data);
+        }
+      });
+
+      const unsubscribeStatus = window.novaTerm.session.onStatus((event) => {
+        if (event.paneId === pane.id) {
+          const nextState =
+            event.status === 'connected'
+              ? 'connected'
+              : event.status === 'disconnected'
+                ? 'disconnected'
+                : 'error';
+          newCached.sessionState = nextState;
+          newCached.onStatusChange?.(nextState);
+        }
+      });
+
+      const disposeInput = term.onData((data) => {
+        window.novaTerm.session.write(pane.id, data);
+      });
+
+      newCached.dispose = () => {
+        disposeInput.dispose();
+        unsubscribeData();
+        unsubscribeStatus();
+        term.dispose();
+        wrapperEl.remove();
+      };
+
+      terminalCache.set(pane.id, newCached);
+      cached = newCached;
+
+      void window.novaTerm.session.create({
+        paneId: pane.id,
+        cols: term.cols,
+        rows: term.rows,
+        config: pane.sessionConfig,
+      });
+
+      void window.novaTerm.log.getStatus(pane.id).then((active) => {
+        onLoggingChange(active);
+      });
+    } else {
+      container.appendChild(cached.wrapperEl);
+      cached.fitAddon.fit();
+      window.novaTerm.session.resize(pane.id, cached.term.cols, cached.term.rows);
+    }
+
+    termRef.current = cached.term;
+    fitAddonRef.current = cached.fitAddon;
+    cached.onStatusChange = setSessionState;
+    setSessionState(cached.sessionState);
 
     const resizeObserver = new ResizeObserver(() => {
       try {
-        fitAddon.fit();
-        window.novaTerm.session.resize(pane.id, term.cols, term.rows);
+        cached!.fitAddon.fit();
+        window.novaTerm.session.resize(pane.id, cached!.term.cols, cached!.term.rows);
       } catch {
         // Ignore transient resize errors while hidden
       }
@@ -254,14 +307,13 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 
     return () => {
       resizeObserver.disconnect();
-      disposeInput.dispose();
-      unsubscribeData();
-      unsubscribeStatus();
-      term.dispose();
+      if (cached) {
+        cached.onStatusChange = undefined;
+      }
       termRef.current = null;
       fitAddonRef.current = null;
     };
-    // Intentionally mount session once per pane.id
+    // Intentionally mount/reattach session per pane.id
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pane.id]);
 

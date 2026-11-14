@@ -17,6 +17,7 @@ import {
   TabState,
   WorkspaceState,
 } from '../../shared/types';
+import { disposeTerminalInstance } from '../components/TerminalView';
 
 function makeTabId(): string {
   return `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -125,6 +126,7 @@ export function useWorkspaceStore() {
         const target = prev.find((t) => t.id === tabId);
         if (target) {
           for (const leaf of getAllLeafPanes(target.rootPane)) {
+            disposeTerminalInstance(leaf.id);
             void window.novaTerm.session.close(leaf.id);
           }
         }
@@ -207,6 +209,7 @@ export function useWorkspaceStore() {
 
   const closePane = useCallback(
     (tabId: string, paneId: string) => {
+      disposeTerminalInstance(paneId);
       void window.novaTerm.session.close(paneId);
       setTabs((prev) => {
         const nextTabs: TabState[] = [];

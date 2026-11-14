@@ -57,6 +57,11 @@ export class SessionManager {
     };
 
     if (config.type === 'local') {
+      const managed: ManagedSession = {
+        paneId,
+        backend: null as unknown as TerminalSessionBackend,
+        recorder,
+      };
       const backend = new LocalPtySession({
         cwd: config.cwd,
         shell: config.shell,
@@ -64,16 +69,19 @@ export class SessionManager {
         rows,
         onData: handleData,
         onExit: (exitCode) => {
+          if (this.sessions.get(paneId) !== managed) {
+            return;
+          }
           this.callbacks.onStatus({
             paneId,
             status: 'disconnected',
             exitCode,
           });
-          void this.cleanupSession(paneId);
+          void this.cleanupSession(paneId, managed);
         },
       });
 
-      const managed: ManagedSession = { paneId, backend, recorder };
+      managed.backend = backend;
       this.sessions.set(paneId, managed);
       this.callbacks.onStatus({ paneId, status: 'connected' });
 
@@ -110,25 +118,30 @@ export class SessionManager {
       data: `\r\n\x1b[36m[NovaTerm] Connecting to ${profile.username}@${profile.host}:${profile.port}...\x1b[0m\r\n`,
     });
 
+    const managed: ManagedSession = {
+      paneId,
+      backend: null as unknown as TerminalSessionBackend,
+      recorder,
+    };
+
     const backend = new SshSession({
       profile,
       cols,
       rows,
       onData: handleData,
       onConnected: () => {
+        if (this.sessions.get(paneId) !== managed) return;
         this.callbacks.onStatus({ paneId, status: 'connected' });
         const autoCmd =
           config.autoCommand?.trim() ||
           profile.autoCommand?.trim() ||
           appConfig.autoCommands.onNewSshTab.trim();
         if (autoCmd) {
-          const current = this.sessions.get(paneId);
-          if (current) {
-            this.scheduleAutoCommand(current, autoCmd, appConfig.autoCommands.delayMs);
-          }
+          this.scheduleAutoCommand(managed, autoCmd, appConfig.autoCommands.delayMs);
         }
       },
       onError: (message) => {
+        if (this.sessions.get(paneId) !== managed) return;
         this.callbacks.onData({
           paneId,
           data: `\r\n\x1b[31m[SSH Error] ${message}\x1b[0m\r\n`,
@@ -136,16 +149,18 @@ export class SessionManager {
         this.callbacks.onStatus({ paneId, status: 'error', message });
       },
       onClose: () => {
+        if (this.sessions.get(paneId) !== managed) return;
         this.callbacks.onData({
           paneId,
           data: `\r\n\x1b[33m[NovaTerm] SSH connection closed.\x1b[0m\r\n`,
         });
         this.callbacks.onStatus({ paneId, status: 'disconnected' });
-        void this.cleanupSession(paneId);
+        void this.cleanupSession(paneId, managed);
       },
     });
 
-    this.sessions.set(paneId, { paneId, backend, recorder });
+    managed.backend = backend;
+    this.sessions.set(paneId, managed);
   }
 
   private scheduleAutoCommand(
@@ -218,12 +233,15 @@ export class SessionManager {
       return;
     }
     managed.backend.close();
-    await this.cleanupSession(paneId);
+    await this.cleanupSession(paneId, managed);
   }
 
-  private async cleanupSession(paneId: string): Promise<void> {
+  private async cleanupSession(
+    paneId: string,
+    expected?: ManagedSession,
+  ): Promise<void> {
     const managed = this.sessions.get(paneId);
-    if (!managed) {
+    if (!managed || (expected && managed !== expected)) {
       return;
     }
     this.sessions.delete(paneId);
