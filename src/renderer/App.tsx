@@ -71,6 +71,11 @@ export const App: React.FC = () => {
       activeTab.activePaneId,
       `${normalized}${suffix}`,
     );
+    window.dispatchEvent(
+      new CustomEvent('novaterm:focus-pane', {
+        detail: { paneId: activeTab.activePaneId },
+      }),
+    );
   };
 
   const handleSaveQuickCommands = async (nextCommands: QuickCommandItem[]) => {

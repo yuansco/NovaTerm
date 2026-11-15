@@ -189,6 +189,7 @@ export const QuickCommandBar: React.FC<QuickCommandBarProps> = ({
               key={item.id}
               className="quick-cmd-btn"
               style={{ fontFamily, fontSize }}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onExecute(item)}
               title={item.command}
             >

@@ -340,6 +340,22 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     }
   }, [isActive, isTabVisible]);
 
+  // Restore focus when explicitly requested (e.g. after clicking Quick Command Bar)
+  useEffect(() => {
+    const handleFocusPane = (event: Event) => {
+      const customEvent = event as CustomEvent<{ paneId?: string }>;
+      if (customEvent.detail?.paneId === pane.id) {
+        requestAnimationFrame(() => {
+          termRef.current?.focus();
+        });
+      }
+    };
+    window.addEventListener('novaterm:focus-pane', handleFocusPane);
+    return () => {
+      window.removeEventListener('novaterm:focus-pane', handleFocusPane);
+    };
+  }, [pane.id]);
+
   return (
     <div
       className={`terminal-pane ${isActive ? 'active' : ''}`}
