@@ -50,6 +50,7 @@
   "build": {
     "appId": "com.novaterm.app",
     "productName": "NovaTerm",
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },
@@ -63,7 +64,7 @@
       "node_modules/@lydell/node-pty*/**"
     ],
     "linux": {
-      "icon": "assets/icon.png",
+      "icon": "assets/icons",
       "category": "System;TerminalEmulator",
       "executableName": "novaterm",
       "syncDesktopName": true,
