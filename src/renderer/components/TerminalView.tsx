@@ -384,7 +384,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
           title={t.terminal.closePane}
           style={{ padding: 2 }}
         >
-          <X size={11} />
+          <X size={Math.max(11, Math.round((config.fontSize || 14) * 0.75))} />
         </button>
       </div>
 

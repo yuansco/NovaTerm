@@ -44,7 +44,8 @@ body,
 .tab-bar {
   display: flex;
   align-items: center;
-  height: 38px;
+  height: var(--nt-tab-bar-height, 38px);
+  min-height: 38px;
   background: var(--nt-tab-bar-bg);
   border-bottom: 1px solid var(--nt-border-color);
   padding-left: 8px;
@@ -58,7 +59,7 @@ body,
   gap: 6px;
   padding: 0 10px 0 4px;
   height: 100%;
-  font-size: 12px;
+  font-size: var(--nt-tab-font-size, 12px);
   font-weight: 600;
   color: var(--nt-text-secondary);
   -webkit-app-region: drag;
@@ -85,9 +86,10 @@ body,
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 32px;
+  height: var(--nt-tab-item-height, 32px);
+  min-height: 32px;
   min-width: 120px;
-  max-width: 210px;
+  max-width: var(--nt-tab-item-max-width, 240px);
   padding: 0 10px;
   border-radius: 6px 6px 0 0;
   background: transparent;
@@ -115,7 +117,7 @@ body,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--nt-tab-font-size, 12px);
   font-weight: 500;
 }
 
@@ -126,7 +128,7 @@ body,
   border: 1px solid var(--nt-accent-color);
   border-radius: 3px;
   padding: 1px 4px;
-  font-size: 12px;
+  font-size: var(--nt-tab-font-size, 12px);
   outline: none;
 }
 
@@ -294,11 +296,12 @@ body,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 22px;
+  height: var(--nt-pane-header-height, 22px);
+  min-height: 22px;
   padding: 0 8px;
   background: var(--nt-surface-bg);
   border-bottom: 1px solid var(--nt-border-color);
-  font-size: 11px;
+  font-size: var(--nt-pane-header-font-size, 11px);
   color: var(--nt-text-secondary);
   flex-shrink: 0;
 }

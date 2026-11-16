@@ -110,6 +110,19 @@ export const App: React.FC = () => {
     root.setProperty('--nt-danger-color', ui.dangerColor);
     root.setProperty('--nt-success-color', ui.successColor);
 
+    if (config?.fontSize) {
+      const fs = config.fontSize;
+      const tabFontSize = Math.max(12, fs);
+      const paneHeaderFontSize = Math.max(11, fs - 2);
+      root.setProperty('--nt-font-size', `${fs}px`);
+      root.setProperty('--nt-tab-font-size', `${tabFontSize}px`);
+      root.setProperty('--nt-tab-bar-height', `${Math.max(38, tabFontSize + 22)}px`);
+      root.setProperty('--nt-tab-item-height', `${Math.max(32, tabFontSize + 16)}px`);
+      root.setProperty('--nt-tab-item-max-width', `${Math.max(210, tabFontSize * 15)}px`);
+      root.setProperty('--nt-pane-header-font-size', `${paneHeaderFontSize}px`);
+      root.setProperty('--nt-pane-header-height', `${Math.max(22, paneHeaderFontSize + 11)}px`);
+    }
+
     let styleEl = document.getElementById('novaterm-custom-css') as HTMLStyleElement | null;
     if (!styleEl) {
       styleEl = document.createElement('style');
@@ -117,7 +130,7 @@ export const App: React.FC = () => {
       document.head.appendChild(styleEl);
     }
     styleEl.textContent = activeTheme.customCss ?? '';
-  }, [activeTheme]);
+  }, [activeTheme, config?.fontSize]);
 
   // Global keyboard shortcuts for tabs, splits, pane focus, and resizing
   useEffect(() => {
@@ -190,6 +203,7 @@ export const App: React.FC = () => {
         t={t}
         tabs={tabs}
         activeTabId={activeTabId}
+        fontSize={config.fontSize}
         onSelectTab={setActiveTabId}
         onAddTab={() => addLocalTab()}
         onCloseTab={closeTab}

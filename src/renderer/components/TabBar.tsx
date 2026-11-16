@@ -19,6 +19,7 @@ interface TabBarProps {
   t: Translations;
   tabs: TabState[];
   activeTabId: string;
+  fontSize?: number;
   onSelectTab: (tabId: string) => void;
   onAddTab: () => void;
   onCloseTab: (tabId: string) => void;
@@ -35,6 +36,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   t,
   tabs,
   activeTabId,
+  fontSize,
   onSelectTab,
   onAddTab,
   onCloseTab,
@@ -48,6 +50,12 @@ export const TabBar: React.FC<TabBarProps> = ({
 }) => {
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
+
+  const baseFontSize = fontSize ?? 14;
+  const tabIconSize = Math.max(13, Math.min(22, Math.round(baseFontSize * 0.95)));
+  const tabCloseSize = Math.max(12, Math.min(20, Math.round(baseFontSize * 0.85)));
+  const actionIconSize = Math.max(14, Math.min(22, Math.round(baseFontSize * 1.0)));
+  const windowIconSize = Math.max(13, Math.min(20, Math.round(baseFontSize * 0.9)));
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const commitRename = (tabId: string) => {
@@ -100,7 +108,7 @@ export const TabBar: React.FC<TabBarProps> = ({
               }}
               title={t.tabBar.tabTooltip}
             >
-              <Terminal size={13} />
+              <Terminal size={tabIconSize} />
               {isEditing ? (
                 <input
                   className="tab-rename-input"
@@ -128,7 +136,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                 }}
                 title={t.tabBar.closeTab}
               >
-                <X size={12} />
+                <X size={tabCloseSize} />
               </button>
             </div>
           );
@@ -140,7 +148,7 @@ export const TabBar: React.FC<TabBarProps> = ({
           title={t.tabBar.newTab}
           style={{ marginLeft: 4, marginBottom: 4 }}
         >
-          <Plus size={15} />
+          <Plus size={actionIconSize} />
         </button>
       </div>
 
@@ -150,28 +158,28 @@ export const TabBar: React.FC<TabBarProps> = ({
           onClick={onToggleQuickBar}
           title={t.tabBar.quickBarToggle}
         >
-          <Zap size={15} />
+          <Zap size={actionIconSize} />
         </button>
         <button
           className="icon-btn"
           onClick={() => onSplitPane('vertical')}
           title={t.tabBar.splitVertical}
         >
-          <Columns size={15} />
+          <Columns size={actionIconSize} />
         </button>
         <button
           className="icon-btn"
           onClick={() => onSplitPane('horizontal')}
           title={t.tabBar.splitHorizontal}
         >
-          <Rows size={15} />
+          <Rows size={actionIconSize} />
         </button>
         <button
           className="toolbar-pill-btn"
           onClick={onOpenSshManager}
           title={`${t.tabBar.sshManager} (Ctrl+Shift+S)`}
         >
-          <Server size={13} />
+          <Server size={tabIconSize} />
           <span>SSH</span>
         </button>
         <button
@@ -179,7 +187,7 @@ export const TabBar: React.FC<TabBarProps> = ({
           onClick={onOpenSettings}
           title={t.tabBar.settings}
         >
-          <Settings size={15} />
+          <Settings size={actionIconSize} />
         </button>
       </div>
 
@@ -189,21 +197,21 @@ export const TabBar: React.FC<TabBarProps> = ({
           onClick={() => window.novaTerm.windowControls.minimize()}
           title={t.tabBar.minimize}
         >
-          <Minus size={14} />
+          <Minus size={windowIconSize} />
         </button>
         <button
           className="window-ctrl-btn"
           onClick={() => window.novaTerm.windowControls.maximize()}
           title={t.tabBar.maximize}
         >
-          <Square size={12} />
+          <Square size={Math.max(10, windowIconSize - 2)} />
         </button>
         <button
           className="window-ctrl-btn close"
           onClick={() => window.novaTerm.windowControls.close()}
           title={t.tabBar.closeWindow}
         >
-          <X size={14} />
+          <X size={windowIconSize} />
         </button>
       </div>
     </header>
