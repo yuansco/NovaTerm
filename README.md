@@ -18,6 +18,18 @@ A modern cross-platform desktop terminal emulator for **Ubuntu / Linux** and **W
 
 ## Quick Start
 
+### Install on Ubuntu / Linux (.deb)
+
+```bash
+URL=$(curl -fsSL \
+  https://api.github.com/repos/yuansco/NovaTerm/releases/latest |
+  jq -r --arg pattern "$PATTERN" \
+  "[.assets[] | select(.name | test(\"\\\\.deb$\";\"i\")) | select(.name | test(\$pattern;\"i\"))][0].browser_download_url // empty")
+wget $URL -P /tmp
+sudo apt-get install -y /tmp/nova-term_*_amd64.deb
+rm -f /tmp/nova-term_*_amd64.deb
+```
+
 ### Run from Source
 
 ```bash
