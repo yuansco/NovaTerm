@@ -85,9 +85,30 @@ export function createDefaultConfig(_baseDir: string): AppConfig {
     macros: [
       {
         id: 'macro-f1',
-        name: 'Python Venv Setup',
+        name: 'cros_sdk',
         shortcut: 'F1',
-        command: 'cd ~/project;python -m venv venv',
+        command: 'cd ~/chromiumos;cros_sdk --no-ns-pid --no-update',
+        appendNewline: true,
+      },
+      {
+        id: 'macro-f2',
+        name: 'Start Servod',
+        shortcut: 'F2',
+        command: "start-servod --channel=release -p 9999 -f=INFO --allow_offline -b ",
+        appendNewline: false,
+      },
+      {
+        id: 'macro-f3',
+        name: 'EC UART Console',
+        shortcut: 'F3',
+        command: "sudo picocom $(dut-control -- ec_uart_pty | cut -d':' -f2 | tr -d '\\r\\n ')",
+        appendNewline: true,
+      },
+      {
+        id: 'macro-f4',
+        name: 'CPU UART Console',
+        shortcut: 'F4',
+        command: "sudo picocom $(dut-control -- cpu_uart_pty | cut -d':' -f2 | tr -d '\\r\\n ')",
         appendNewline: true,
       },
     ],
