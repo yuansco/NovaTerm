@@ -56,7 +56,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   const top = Math.min(y, window.innerHeight - 280);
 
   return (
-    <div ref={menuRef} className="context-menu" style={{ left, top }}>
+    <div
+      ref={menuRef}
+      className="context-menu"
+      style={{ left, top }}
+      onMouseDown={(e) => e.preventDefault()}
+    >
       <button
         className="context-menu-item"
         onClick={() => {

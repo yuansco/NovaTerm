@@ -124,6 +124,10 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     if (text) {
       void navigator.clipboard.writeText(text);
     }
+    term.focus();
+    requestAnimationFrame(() => {
+      term.focus();
+    });
   }, []);
 
   const handlePaste = useCallback(async () => {
@@ -134,6 +138,11 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       }
     } catch (err) {
       console.error('Clipboard paste failed:', err);
+    } finally {
+      termRef.current?.focus();
+      requestAnimationFrame(() => {
+        termRef.current?.focus();
+      });
     }
   }, [pane.id]);
 
@@ -363,6 +372,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       onContextMenu={(e) => {
         e.preventDefault();
         onFocus();
+        termRef.current?.focus();
         setContextMenu({ x: e.clientX, y: e.clientY });
       }}
     >
@@ -403,7 +413,13 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
           onToggleContinuousLog={() => void handleToggleContinuousLog()}
           onSplit={onSplit}
           onClosePane={onClosePane}
-          onClose={() => setContextMenu(null)}
+          onClose={() => {
+            setContextMenu(null);
+            termRef.current?.focus();
+            requestAnimationFrame(() => {
+              termRef.current?.focus();
+            });
+          }}
         />
       )}
     </div>
