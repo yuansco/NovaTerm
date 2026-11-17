@@ -108,26 +108,37 @@ function createWindow(): void {
     void mainWindow.loadURL('http://localhost:5173');
   }
 
+  let windowBoundsTimer: NodeJS.Timeout | null = null;
   const persistWindowBounds = () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    const current = configStore.getWorkspaceState();
-    const isMaximized = mainWindow.isMaximized();
-    const rect = mainWindow.getNormalBounds();
-    configStore.saveWorkspaceState({
-      ...current,
-      windowBounds: {
-        width: rect.width,
-        height: rect.height,
-        x: rect.x,
-        y: rect.y,
-        isMaximized,
-      },
-    });
+    if (windowBoundsTimer) {
+      clearTimeout(windowBoundsTimer);
+    }
+    windowBoundsTimer = setTimeout(() => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      const current = configStore.getWorkspaceState();
+      const isMaximized = mainWindow.isMaximized();
+      const rect = mainWindow.getNormalBounds();
+      configStore.saveWorkspaceState({
+        ...current,
+        windowBounds: {
+          width: rect.width,
+          height: rect.height,
+          x: rect.x,
+          y: rect.y,
+          isMaximized,
+        },
+      });
+    }, 400);
   };
 
   mainWindow.on('resize', persistWindowBounds);
   mainWindow.on('move', persistWindowBounds);
   mainWindow.on('closed', () => {
+    if (windowBoundsTimer) {
+      clearTimeout(windowBoundsTimer);
+      windowBoundsTimer = null;
+    }
     mainWindow = null;
   });
 }
@@ -349,18 +360,72 @@ if (process.platform === 'linux') {
   appWithDesktopName.setDesktopName?.('novaterm.desktop');
 }
 
+// Enable GPU hardware acceleration flags only if the user explicitly enabled useWebGL in config
+try {
+  const configPath = path.join(app.getPath('userData'), 'config.json');
+  if (fs.existsSync(configPath)) {
+    const raw = fs.readFileSync(configPath, 'utf8');
+    const parsed = JSON.parse(raw) as { useWebGL?: boolean };
+    if (parsed.useWebGL) {
+      app.commandLine.appendSwitch('enable-gpu-rasterization');
+      app.commandLine.appendSwitch('enable-zero-copy');
+      app.commandLine.appendSwitch('ignore-gpu-blocklist');
+    }
+  }
+} catch {
+  // Ignore startup config inspection errors
+}
+
 void app.whenReady().then(() => {
   ensureLinuxDesktopEntry();
   const userDataDir = app.getPath('userData');
   configStore = new ConfigStore(userDataDir, createElectronSecretCipher(safeStorage));
 
+  // Adaptive coalescing buffer to prevent IPC saturation and CPU spikes under rapid log output
+  const pendingDataByPane = new Map<string, string>();
+  let pendingBytesTotal = 0;
+  let dataBatchTimer: NodeJS.Timeout | null = null;
+  const BATCH_INTERVAL_MS = 12; // ~80Hz: less than 1 frame budget (16.6ms), zero human-perceptible latency
+  const MAX_BATCH_BYTES = 65536; // 64KB: flush immediately on large bursts to prevent memory pressure
+
+  const flushDataBatch = () => {
+    if (dataBatchTimer !== null) {
+      clearTimeout(dataBatchTimer);
+      dataBatchTimer = null;
+    }
+    pendingBytesTotal = 0;
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      pendingDataByPane.clear();
+      return;
+    }
+    for (const [paneId, data] of pendingDataByPane.entries()) {
+      if (data) {
+        mainWindow.webContents.send(IPC_CHANNELS.SESSION_DATA, { paneId, data });
+      }
+    }
+    pendingDataByPane.clear();
+  };
+
   sessionManager = new SessionManager(configStore, {
     onData: (event) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC_CHANNELS.SESSION_DATA, event);
+      const existing = pendingDataByPane.get(event.paneId) ?? '';
+      pendingDataByPane.set(event.paneId, existing + event.data);
+      pendingBytesTotal += event.data.length;
+
+      // If accumulated data exceeds threshold, flush immediately to avoid latency and memory buildup
+      if (pendingBytesTotal >= MAX_BATCH_BYTES) {
+        flushDataBatch();
+        return;
+      }
+
+      if (!dataBatchTimer) {
+        dataBatchTimer = setTimeout(flushDataBatch, BATCH_INTERVAL_MS);
       }
     },
     onStatus: (event) => {
+      if (pendingDataByPane.has(event.paneId)) {
+        flushDataBatch();
+      }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send(IPC_CHANNELS.SESSION_STATUS, event);
       }

@@ -72,7 +72,7 @@ export function createDefaultConfig(_baseDir: string): AppConfig {
     fontFamily: '"JetBrains Mono", "Fira Code", "Ubuntu Mono", monospace',
     fontSize: 14,
     lineHeight: 1.25,
-    useWebGL: true,
+    useWebGL: false,
     scrollback: 10000,
     logQuota: {
       enabled: false,

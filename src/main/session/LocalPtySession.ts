@@ -16,6 +16,9 @@ function resolveDefaultShell(explicitShell?: string): string {
 }
 
 function parseOsc7Cwd(data: string): string | undefined {
+  if (!data.includes('\x1b]7;')) {
+    return undefined;
+  }
   let latest: string | undefined;
   OSC7_REGEX.lastIndex = 0;
   let match: RegExpExecArray | null;

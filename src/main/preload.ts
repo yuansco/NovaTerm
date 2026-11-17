@@ -18,6 +18,7 @@ export interface NovaTermApi {
     close(paneId: string): Promise<void>;
     getCwd(paneId: string): Promise<string | undefined>;
     onData(callback: (event: SessionDataEvent) => void): () => void;
+    onData(paneId: string, callback: (data: string) => void): () => void;
     onStatus(callback: (event: SessionStatusEvent) => void): () => void;
     onCwd(callback: (event: SessionCwdEvent) => void): () => void;
   };
@@ -52,6 +53,23 @@ export interface NovaTermApi {
   };
 }
 
+const paneDataListeners = new Map<string, Set<(data: string) => void>>();
+const globalDataListeners = new Set<(event: SessionDataEvent) => void>();
+
+ipcRenderer.on(IPC_CHANNELS.SESSION_DATA, (_: Electron.IpcRendererEvent, event: SessionDataEvent) => {
+  const paneListeners = paneDataListeners.get(event.paneId);
+  if (paneListeners && paneListeners.size > 0) {
+    for (const cb of paneListeners) {
+      cb(event.data);
+    }
+  }
+  if (globalDataListeners.size > 0) {
+    for (const cb of globalDataListeners) {
+      cb(event);
+    }
+  }
+});
+
 const api: NovaTermApi = {
   session: {
     create: (payload) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_CREATE, payload),
@@ -60,11 +78,36 @@ const api: NovaTermApi = {
       ipcRenderer.send(IPC_CHANNELS.SESSION_RESIZE, paneId, cols, rows),
     close: (paneId) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_CLOSE, paneId),
     getCwd: (paneId) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_CWD, paneId),
-    onData: (callback) => {
-      const listener = (_: Electron.IpcRendererEvent, event: SessionDataEvent) =>
-        callback(event);
-      ipcRenderer.on(IPC_CHANNELS.SESSION_DATA, listener);
-      return () => ipcRenderer.removeListener(IPC_CHANNELS.SESSION_DATA, listener);
+    onData: ((
+      arg1: string | ((event: SessionDataEvent) => void),
+      arg2?: (data: string) => void,
+    ) => {
+      if (typeof arg1 === 'string' && typeof arg2 === 'function') {
+        const paneId = arg1;
+        const cb = arg2;
+        let listeners = paneDataListeners.get(paneId);
+        if (!listeners) {
+          listeners = new Set();
+          paneDataListeners.set(paneId, listeners);
+        }
+        listeners.add(cb);
+        return () => {
+          listeners.delete(cb);
+          if (listeners.size === 0) {
+            paneDataListeners.delete(paneId);
+          }
+        };
+      } else if (typeof arg1 === 'function') {
+        const cb = arg1;
+        globalDataListeners.add(cb);
+        return () => {
+          globalDataListeners.delete(cb);
+        };
+      }
+      return () => {};
+    }) as {
+      (callback: (event: SessionDataEvent) => void): () => void;
+      (paneId: string, callback: (data: string) => void): () => void;
     },
     onStatus: (callback) => {
       const listener = (_: Electron.IpcRendererEvent, event: SessionStatusEvent) =>

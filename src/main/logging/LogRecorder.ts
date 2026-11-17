@@ -7,6 +7,9 @@ const ANSI_ESCAPE_REGEX =
   /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/g;
 
 export function stripAnsiSequences(input: string): string {
+  if (!input.includes('\x1b')) {
+    return input;
+  }
   return input.replace(ANSI_ESCAPE_REGEX, '');
 }
 

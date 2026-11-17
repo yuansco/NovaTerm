@@ -59,20 +59,35 @@ export const SplitPaneContainer: React.FC<SplitPaneContainerProps> = ({
     e.preventDefault();
     setIsDragging(true);
 
+    let rafId: number | null = null;
+    let latestRatio: number | null = null;
+
     const onMouseMove = (moveEvent: MouseEvent) => {
       const container = containerRef.current;
       if (!container) return;
       const rect = container.getBoundingClientRect();
-      if (node.direction === 'vertical') {
-        const nextRatio = (moveEvent.clientX - rect.left) / rect.width;
-        onResizeRatio(node.id, nextRatio);
-      } else {
-        const nextRatio = (moveEvent.clientY - rect.top) / rect.height;
-        onResizeRatio(node.id, nextRatio);
+      const nextRatio =
+        node.direction === 'vertical'
+          ? (moveEvent.clientX - rect.left) / rect.width
+          : (moveEvent.clientY - rect.top) / rect.height;
+
+      latestRatio = nextRatio;
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          if (latestRatio !== null) {
+            onResizeRatio(node.id, latestRatio);
+          }
+        });
       }
     };
 
     const onMouseUp = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       setIsDragging(false);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);

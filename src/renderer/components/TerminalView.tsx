@@ -62,6 +62,7 @@ function formatKeyCombo(e: KeyboardEvent): string {
 interface CachedTerminal {
   term: Terminal;
   fitAddon: FitAddon;
+  webglAddon?: WebglAddon | null;
   wrapperEl: HTMLDivElement;
   sessionState: 'idle' | 'connected' | 'disconnected' | 'error';
   onStatusChange?: (state: 'idle' | 'connected' | 'disconnected' | 'error') => void;
@@ -180,6 +181,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       const term = new Terminal({
         allowProposedApi: true,
         cursorBlink: true,
+        smoothScrollDuration: 0,
         fontFamily: config.fontFamily,
         fontSize: config.fontSize,
         lineHeight: config.lineHeight,
@@ -198,14 +200,18 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       container.appendChild(wrapperEl);
       term.open(wrapperEl);
 
+      let initialWebglAddon: WebglAddon | null = null;
       if (config.useWebGL) {
         try {
-          const webglAddon = new WebglAddon();
-          webglAddon.onContextLoss(() => {
-            webglAddon.dispose();
+          initialWebglAddon = new WebglAddon();
+          initialWebglAddon.onContextLoss(() => {
+            initialWebglAddon?.dispose();
+            const currentCached = terminalCache.get(pane.id);
+            if (currentCached) currentCached.webglAddon = null;
           });
-          term.loadAddon(webglAddon);
+          term.loadAddon(initialWebglAddon);
         } catch {
+          initialWebglAddon = null;
           // Fallback to standard canvas/DOM renderer
         }
       }
@@ -244,15 +250,14 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       const newCached: CachedTerminal = {
         term,
         fitAddon,
+        webglAddon: initialWebglAddon,
         wrapperEl,
         sessionState: 'idle',
         dispose: () => {},
       };
 
-      const unsubscribeData = window.novaTerm.session.onData((event) => {
-        if (event.paneId === pane.id) {
-          term.write(event.data);
-        }
+      const unsubscribeData = window.novaTerm.session.onData(pane.id, (data) => {
+        term.write(data);
       });
 
       const unsubscribeStatus = window.novaTerm.session.onStatus((event) => {
@@ -276,6 +281,12 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         disposeInput.dispose();
         unsubscribeData();
         unsubscribeStatus();
+        try {
+          newCached.webglAddon?.dispose();
+        } catch {
+          // ignore dispose error
+        }
+        newCached.webglAddon = null;
         term.dispose();
         wrapperEl.remove();
       };
@@ -304,17 +315,40 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     cached.onStatusChange = setSessionState;
     setSessionState(cached.sessionState);
 
+    let resizeRaf: number | null = null;
+    let lastCols = cached.term.cols;
+    let lastRows = cached.term.rows;
+
     const resizeObserver = new ResizeObserver(() => {
-      try {
-        cached!.fitAddon.fit();
-        window.novaTerm.session.resize(pane.id, cached!.term.cols, cached!.term.rows);
-      } catch {
-        // Ignore transient resize errors while hidden
+      if (!container || container.clientWidth === 0 || container.clientHeight === 0) {
+        return;
       }
+      if (resizeRaf !== null) return;
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = null;
+        if (!container || !cached || container.clientWidth === 0 || container.clientHeight === 0) {
+          return;
+        }
+        try {
+          cached.fitAddon.fit();
+          const { cols, rows } = cached.term;
+          if (cols > 0 && rows > 0 && (cols !== lastCols || rows !== lastRows)) {
+            lastCols = cols;
+            lastRows = rows;
+            window.novaTerm.session.resize(pane.id, cols, rows);
+          }
+        } catch {
+          // Ignore transient resize errors while hidden
+        }
+      });
     });
     resizeObserver.observe(container);
 
     return () => {
+      if (resizeRaf !== null) {
+        cancelAnimationFrame(resizeRaf);
+        resizeRaf = null;
+      }
       resizeObserver.disconnect();
       if (cached) {
         cached.onStatusChange = undefined;
@@ -326,15 +360,40 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pane.id]);
 
-  // Dynamic 24-bit theme & font updates without recreating session
+  // Dynamic 24-bit theme, font & WebGL/GPU acceleration updates without recreating session
   useEffect(() => {
+    const cached = terminalCache.get(pane.id);
     const term = termRef.current;
-    if (!term) return;
+    if (!term || !cached) return;
     term.options.theme = theme.terminal;
     term.options.fontFamily = config.fontFamily;
     term.options.fontSize = config.fontSize;
     term.options.lineHeight = config.lineHeight;
     term.options.scrollback = config.scrollback;
+
+    // Dynamically attach or detach WebGL hardware acceleration based on setting
+    if (config.useWebGL && !cached.webglAddon) {
+      try {
+        const addon = new WebglAddon();
+        addon.onContextLoss(() => {
+          addon.dispose();
+          const cur = terminalCache.get(pane.id);
+          if (cur) cur.webglAddon = null;
+        });
+        term.loadAddon(addon);
+        cached.webglAddon = addon;
+      } catch {
+        cached.webglAddon = null;
+      }
+    } else if (!config.useWebGL && cached.webglAddon) {
+      try {
+        cached.webglAddon.dispose();
+      } catch {
+        // ignore dispose error
+      }
+      cached.webglAddon = null;
+    }
+
     fitAddonRef.current?.fit();
     window.novaTerm.session.resize(pane.id, term.cols, term.rows);
   }, [theme, config, pane.id]);
