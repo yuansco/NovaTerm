@@ -2,6 +2,16 @@
 
 A modern cross-platform desktop terminal emulator for **Ubuntu / Linux** and **Windows**, built with **Electron**, **React**, **TypeScript**, **xterm.js** (with WebGL acceleration), **@lydell/node-pty**, and **ssh2**.
 
+## Quick Start
+
+Install the latest release package:
+```bash
+wget $(wget -qO- https://api.github.com/repos/yuansco/NovaTerm/releases/latest | grep -o 'https://[^"]*\.deb' | head -n 1)
+sudo apt install -y ./nova-term_*_amd64.deb
+```
+
+Once installed, you can launch **NovaTerm** from your desktop application launcher or run `novaterm` directly in your terminal.
+
 ## Key Features
 
 - **Cross-Platform Local Shells**: Runs `$SHELL` / `/bin/bash` on Linux and `powershell.exe` on Windows, with cross-platform working directory (`CWD`) tracking via `/proc` and OSC 7 sequences.
@@ -16,19 +26,6 @@ A modern cross-platform desktop terminal emulator for **Ubuntu / Linux** and **W
   - Auto-run startup commands for new local tabs and SSH connections.
   - Full JSON configuration export/import for backup and migration.
 
-## Quick Start
-
-### Install on Ubuntu / Linux (.deb)
-
-```bash
-URL=$(curl -fsSL \
-  https://api.github.com/repos/yuansco/NovaTerm/releases/latest |
-  jq -r --arg pattern "$PATTERN" \
-  "[.assets[] | select(.name | test(\"\\\\.deb$\";\"i\")) | select(.name | test(\$pattern;\"i\"))][0].browser_download_url // empty")
-wget $URL -P /tmp
-sudo apt-get install -y /tmp/nova-term_*_amd64.deb
-rm -f /tmp/nova-term_*_amd64.deb
-```
 
 ### Run from Source
 
