@@ -233,7 +233,7 @@ const ZH_TW: Translations = {
       about: '關於 NovaTerm',
     },
     about: {
-      subtitle: 'Ubuntu 現代化終端機桌面應用程式 (v1.0.1)',
+      subtitle: 'Ubuntu 現代化終端機桌面應用程式 (v1.0.2)',
       description:
         'NovaTerm 是一款專為 Ubuntu 桌面環境設計的現代化終端機模擬器，整合智慧分頁、無限層級分割窗格、內建 SSH 客戶端與工作區狀態記憶，提供高效且可高度自訂的開發維運體驗。',
       featuresTitle: '核心功能特色',
@@ -388,7 +388,7 @@ const EN: Translations = {
       about: 'About',
     },
     about: {
-      subtitle: 'Modern Ubuntu Desktop Terminal Emulator (v1.0.1)',
+      subtitle: 'Modern Ubuntu Desktop Terminal Emulator (v1.0.2)',
       description:
         'NovaTerm is a modern terminal emulator crafted for Ubuntu desktops, combining smart tabs, unlimited split panes, a built-in SSH client, and automatic workspace persistence.',
       featuresTitle: 'Core Highlights',

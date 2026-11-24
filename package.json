@@ -1,6 +1,6 @@
 {
   "name": "nova-term",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Modern Ubuntu desktop terminal emulator with smart tabs, infinite split panes, built-in SSH, session persistence, and log streaming",
   "author": "yuansco <yuansco@users.noreply.github.com>",
   "homepage": "https://github.com/yuansco/NovaTerm",

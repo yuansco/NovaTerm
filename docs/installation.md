@@ -84,13 +84,13 @@ npm run pack:linux
 
 This compiles both Main & Renderer processes and generates the installers under `release/`:
 
-- `release/NovaTerm-1.0.1.AppImage`
-- `release/nova-term_1.0.1_amd64.deb`
+- `release/NovaTerm-1.0.2.AppImage`
+- `release/nova-term_1.0.2_amd64.deb`
 
 #### Install `.deb` system-wide
 
 ```bash
-sudo dpkg -i release/nova-term_1.0.1_amd64.deb
+sudo dpkg -i release/nova-term_1.0.2_amd64.deb
 ```
 
 After installation, launch `novaterm` from your terminal or Ubuntu application launcher. To uninstall later:
@@ -102,8 +102,8 @@ sudo apt remove nova-term
 #### Run `.AppImage` directly
 
 ```bash
-chmod +x release/NovaTerm-1.0.1.AppImage
-./release/NovaTerm-1.0.1.AppImage
+chmod +x release/NovaTerm-1.0.2.AppImage
+./release/NovaTerm-1.0.2.AppImage
 ```
 
 ## Packaging for Windows
